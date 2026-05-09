@@ -408,3 +408,51 @@ export async function searchProducts(queryText: string): Promise<ProductSnapshot
       productUrl: typeof product.url === "string" ? product.url : null,
     }));
 }
+
+export async function searchProductByBarcode(barcodeText: string): Promise<ProductSnapshot[]> {
+  const barcode = barcodeText.trim();
+
+  if (!barcode) {
+    return [];
+  }
+
+  const proxyBaseUrl = process.env.EXPO_PUBLIC_PRODUCT_SEARCH_API_BASE_URL?.trim();
+
+  if (!proxyBaseUrl) {
+    throw new Error("Barcode lookup needs the Render product-search backend. Add EXPO_PUBLIC_PRODUCT_SEARCH_API_BASE_URL and restart the app.");
+  }
+
+  const endpoint = `${proxyBaseUrl.replace(/\/+$/, "")}/api/products/barcode/${encodeURIComponent(barcode)}`;
+  let response: Response;
+
+  try {
+    response = await fetch(endpoint);
+  } catch {
+    throw new Error("Your product-search backend could not be reached for barcode lookup. Check that the Render service is running.");
+  }
+
+  if (!response.ok) {
+    let backendMessage = "";
+
+    try {
+      const errorBody = await response.json();
+      backendMessage =
+        typeof errorBody?.error === "string"
+          ? errorBody.error
+          : typeof errorBody?.message === "string"
+            ? errorBody.message
+            : "";
+    } catch {
+      try {
+        backendMessage = await response.text();
+      } catch {
+        backendMessage = "";
+      }
+    }
+
+    throw new Error(backendMessage || `Barcode lookup backend returned ${response.status}.`);
+  }
+
+  const data = await response.json();
+  return Array.isArray(data.results) ? (data.results as ProductSnapshot[]) : [];
+}

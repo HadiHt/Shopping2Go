@@ -8,7 +8,7 @@ import { Card, Screen } from "@/components/layout/Screen";
 import { ShoppingItemRow } from "@/components/lists/ShoppingItemRow";
 import { useSession } from "@/hooks/useSession";
 import { theme } from "@/lib/theme";
-import { addListItem, buildOngoingListId, searchProducts, subscribeListItems, toggleListItem } from "@/services/firestore";
+import { addListItem, buildOngoingListId, searchProductByBarcode, searchProducts, subscribeListItems, toggleListItem } from "@/services/firestore";
 import type { ProductSnapshot, ShoppingItem } from "@/types/models";
 import { getErrorMessage } from "@/utils/errors";
 
@@ -20,9 +20,10 @@ export default function AnytimeListScreen() {
   const [note, setNote] = useState("");
   const [repeatMonthly, setRepeatMonthly] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [barcode, setBarcode] = useState("");
   const [searchResults, setSearchResults] = useState<ProductSnapshot[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<ProductSnapshot | null>(null);
-  const [busy, setBusy] = useState<"save" | "search" | null>(null);
+  const [busy, setBusy] = useState<"save" | "search" | "barcode" | null>(null);
   const [status, setStatus] = useState<{ tone: "success" | "error" | "info"; message: string } | null>(null);
 
   const listId = useMemo(() => (activeHouseholdId ? buildOngoingListId(activeHouseholdId) : null), [activeHouseholdId]);
@@ -91,6 +92,28 @@ export default function AnytimeListScreen() {
     }
   };
 
+  const handleBarcodeSearch = async () => {
+    if (!barcode.trim()) {
+      setStatus({ tone: "error", message: "Enter a barcode before looking up a product." });
+      return;
+    }
+
+    try {
+      setBusy("barcode");
+      setStatus({ tone: "info", message: "Looking up barcode..." });
+      const results = await searchProductByBarcode(barcode);
+      setSearchResults(results);
+      setStatus({
+        tone: results.length > 0 ? "success" : "info",
+        message: results.length > 0 ? `Found ${results.length} barcode match.` : "No product was found for that barcode.",
+      });
+    } catch (error) {
+      setStatus({ tone: "error", message: getErrorMessage(error, "Barcode lookup is unavailable right now.") });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <Screen>
       <Card>
@@ -106,9 +129,18 @@ export default function AnytimeListScreen() {
           value={searchTerm}
           onChangeText={setSearchTerm}
           placeholder="Milk, pasta, toothpaste..."
-          helperText="Use your Render product-search backend for reliable web results. Without it, some public sources may block direct browser requests."
+          helperText="Text search tries Open Food Facts first and falls back to USDA through your Render backend when configured."
         />
         <ActionButton label="Search products" variant="secondary" onPress={handleSearch} loading={busy === "search"} />
+        <TextField
+          label="Barcode lookup"
+          value={barcode}
+          onChangeText={setBarcode}
+          placeholder="3017624010701"
+          keyboardType="number-pad"
+          helperText="Barcode lookup uses Open Food Facts through the Render backend."
+        />
+        <ActionButton label="Lookup barcode" variant="ghost" onPress={handleBarcodeSearch} loading={busy === "barcode"} />
         {searchResults.map((product) => (
           <View key={`${product.sourceName}-${product.sourceProductId}-${product.title}`} style={styles.productRow}>
             {product.imageUrl ? (
