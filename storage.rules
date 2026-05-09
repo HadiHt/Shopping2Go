@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function householdDoc(householdId) {
+      return firestore.get(/databases/(default)/documents/households/$(householdId));
+    }
+
+    function isMember(householdId) {
+      return signedIn() && request.auth.uid in householdDoc(householdId).data.memberIds;
+    }
+
+    match /households/{householdId}/receipts/{allPaths=**} {
+      allow read, write: if isMember(householdId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
