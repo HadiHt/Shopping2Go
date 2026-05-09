@@ -361,9 +361,27 @@ export async function searchProducts(queryText: string): Promise<ProductSnapshot
   }
 
   if (!response.ok) {
+    let backendMessage = "";
+
+    try {
+      const errorBody = await response.json();
+      backendMessage =
+        typeof errorBody?.error === "string"
+          ? errorBody.error
+          : typeof errorBody?.message === "string"
+            ? errorBody.message
+            : "";
+    } catch {
+      try {
+        backendMessage = await response.text();
+      } catch {
+        backendMessage = "";
+      }
+    }
+
     throw new Error(
       proxyBaseUrl
-        ? "The product-search backend returned an error. Please try again later or add the item manually."
+        ? backendMessage || `The product-search backend returned ${response.status}. Please try again later or add the item manually.`
         : "The public product source is currently unavailable. Please try again later or add the item manually.",
     );
   }

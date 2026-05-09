@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Switch, Text, View } from "react-native";
+import { Image, StyleSheet, Switch, Text, View } from "react-native";
 
 import { StatusMessage } from "@/components/feedback/StatusMessage";
 import { ActionButton } from "@/components/forms/ActionButton";
@@ -111,6 +111,13 @@ export default function AnytimeListScreen() {
         <ActionButton label="Search products" variant="secondary" onPress={handleSearch} loading={busy === "search"} />
         {searchResults.map((product) => (
           <View key={`${product.sourceName}-${product.sourceProductId}-${product.title}`} style={styles.productRow}>
+            {product.imageUrl ? (
+              <Image source={{ uri: product.imageUrl }} style={styles.productImage} resizeMode="cover" />
+            ) : (
+              <View style={styles.productImageFallback}>
+                <Text style={styles.productImageFallbackText}>No image</Text>
+              </View>
+            )}
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={styles.productTitle}>{product.title}</Text>
               <Text style={styles.meta}>
@@ -189,10 +196,35 @@ const styles = StyleSheet.create({
   productRow: {
     flexDirection: "row",
     gap: 12,
-    alignItems: "center",
+    alignItems: "flex-start",
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
+  },
+  productImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 14,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  productImageFallback: {
+    width: 64,
+    height: 64,
+    borderRadius: 14,
+    backgroundColor: theme.colors.primarySoft,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  productImageFallbackText: {
+    color: theme.colors.primary,
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
   },
   productTitle: {
     color: theme.colors.text,

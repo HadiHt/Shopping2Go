@@ -46,7 +46,15 @@ app.get("/api/products/search", async (request, response) => {
     });
 
     if (!upstreamResponse.ok) {
-      response.status(502).json({ error: "Upstream product source returned an error." });
+      const upstreamBody = await upstreamResponse.text();
+      console.error("Open Food Facts upstream error", {
+        status: upstreamResponse.status,
+        statusText: upstreamResponse.statusText,
+        body: upstreamBody.slice(0, 300),
+      });
+      response.status(502).json({
+        error: `Upstream product source returned ${upstreamResponse.status} ${upstreamResponse.statusText}.`,
+      });
       return;
     }
 
@@ -67,6 +75,7 @@ app.get("/api/products/search", async (request, response) => {
 
     response.json({ results });
   } catch (error) {
+    console.error("Product search proxy failed", error);
     response.status(500).json({
       error: error instanceof Error ? error.message : "Unexpected product search proxy error.",
     });
