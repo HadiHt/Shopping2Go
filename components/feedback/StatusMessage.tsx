@@ -7,12 +7,30 @@ type StatusMessageProps = {
   message: string;
 };
 
+const toneStyles = {
+  success: {
+    backgroundColor: "#EAF6EF",
+    borderColor: "#BADFC7",
+    color: theme.colors.success,
+  },
+  error: {
+    backgroundColor: "#FCEEEE",
+    borderColor: "#E7B6B6",
+    color: theme.colors.danger,
+  },
+  info: {
+    backgroundColor: "#EDF4FA",
+    borderColor: "#C5D7E6",
+    color: theme.colors.info,
+  },
+} as const;
+
 export function StatusMessage({ tone, message }: StatusMessageProps) {
+  const palette = toneStyles[tone];
+
   return (
-    <View style={[styles.base, tone === "success" ? styles.success : tone === "error" ? styles.error : styles.info]}>
-      <Text style={[styles.text, tone === "success" ? styles.successText : tone === "error" ? styles.errorText : styles.infoText]}>
-        {message}
-      </Text>
+    <View style={[styles.base, { backgroundColor: palette.backgroundColor, borderColor: palette.borderColor }]}>
+      <Text style={[styles.text, { color: palette.color }]}>{message}</Text>
     </View>
   );
 }
@@ -24,30 +42,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderWidth: 1,
   },
-  success: {
-    backgroundColor: "#e6f5ec",
-    borderColor: "#9fd0b0",
-  },
-  error: {
-    backgroundColor: "#fbe9e9",
-    borderColor: "#e2a4a4",
-  },
-  info: {
-    backgroundColor: "#edf5fb",
-    borderColor: "#b7d1e6",
-  },
   text: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: "600",
-  },
-  successText: {
-    color: theme.colors.success,
-  },
-  errorText: {
-    color: theme.colors.danger,
-  },
-  infoText: {
-    color: "#285a80",
+    fontFamily: theme.typography.fonts.label,
   },
 });

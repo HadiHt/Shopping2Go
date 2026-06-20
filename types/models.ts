@@ -1,6 +1,12 @@
 import type { Timestamp } from "firebase/firestore";
 
-export type NullableTimestamp = Timestamp | Date | null | undefined;
+export type NullableTimestamp = Timestamp | Date | string | number | null | undefined;
+
+export type SessionUser = {
+  uid: string;
+  email: string;
+  displayName: string;
+};
 
 export type UserProfile = {
   id: string;
@@ -47,6 +53,7 @@ export type ProductSnapshot = {
   householdId?: string;
   title: string;
   brand?: string;
+  storeName?: string | null;
   price?: number | null;
   currency?: string | null;
   imageUrl?: string | null;
@@ -55,19 +62,42 @@ export type ProductSnapshot = {
   productUrl?: string | null;
 };
 
+export type SavedProduct = {
+  id: string;
+  householdId: string;
+  title: string;
+  brand?: string;
+  storeName?: string | null;
+  price?: number | null;
+  currency?: string | null;
+  imageUrl?: string | null;
+  sourceName: string;
+  sourceProductId?: string | null;
+  productUrl?: string | null;
+  note?: string;
+  quantity?: number | string | null;
+  createdBy: string;
+  createdAt?: NullableTimestamp;
+  updatedAt?: NullableTimestamp;
+  pendingSync?: boolean;
+};
+
 export type ShoppingItem = {
   id: string;
   householdId: string;
   listId: string;
   title: string;
   note?: string;
-  quantity?: string;
+  quantity?: number | string | null;
+  storeName?: string;
   bought: boolean;
+  boughtAt?: NullableTimestamp;
   createdBy: string;
   createdAt?: NullableTimestamp;
   updatedAt?: NullableTimestamp;
   productSnapshotId?: string;
   productSnapshot?: ProductSnapshot | null;
+  pendingSync?: boolean;
 };
 
 export type MonthlyTemplate = {
@@ -75,9 +105,12 @@ export type MonthlyTemplate = {
   householdId: string;
   title: string;
   note?: string;
-  quantity?: string;
+  quantity?: number | string | null;
+  storeName?: string;
+  createdBy?: string;
   createdAt?: NullableTimestamp;
   updatedAt?: NullableTimestamp;
+  pendingSync?: boolean;
 };
 
 export type ReceiptEntry = {
@@ -88,16 +121,19 @@ export type ReceiptEntry = {
   storeName?: string;
   note?: string;
   purchaseDate: string;
-  linkedMonth?: string;
+  linkedMonth?: string | null;
   imagePath?: string | null;
   imageUrl?: string | null;
   createdBy: string;
   createdAt?: NullableTimestamp;
+  updatedAt?: NullableTimestamp;
+  pendingSync?: boolean;
 };
 
 export type SpendingBucket = {
   key: string;
   label: string;
+  subtitle?: string;
   total: number;
 };
 

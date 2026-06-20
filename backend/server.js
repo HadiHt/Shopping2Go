@@ -30,6 +30,7 @@ function normalizeOffSearchResults(products) {
     .map((product) => ({
       title: product.product_name,
       brand: typeof product.brands === "string" ? product.brands.split(",")[0]?.trim() || "" : "",
+      storeName: null,
       price: null,
       currency: null,
       imageUrl: product.image_front_small_url || product.image_url || null,
@@ -45,6 +46,7 @@ function normalizeUsdaResults(foods) {
     .map((food) => ({
       title: food.description,
       brand: typeof food.brandOwner === "string" ? food.brandOwner : typeof food.brandName === "string" ? food.brandName : "",
+      storeName: null,
       price: null,
       currency: null,
       imageUrl: null,
@@ -116,6 +118,7 @@ async function fetchOpenFoodFactsBarcode(barcode) {
     {
       title: product.product_name,
       brand: typeof product.brands === "string" ? product.brands.split(",")[0]?.trim() || "" : "",
+      storeName: null,
       price: null,
       currency: null,
       imageUrl: product.image_front_small_url || product.image_url || null,

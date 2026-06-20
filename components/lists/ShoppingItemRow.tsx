@@ -1,29 +1,50 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { theme } from "@/lib/theme";
+import { type AccentTone, getAccentColors, theme } from "@/lib/theme";
 import type { ShoppingItem } from "@/types/models";
 
 type ShoppingItemRowProps = {
   item: ShoppingItem;
   onToggle: (nextValue: boolean) => void;
+  onRemove: () => void;
+  tone?: AccentTone;
+  density?: "compact" | "comfortable";
 };
 
-export function ShoppingItemRow({ item, onToggle }: ShoppingItemRowProps) {
+export function ShoppingItemRow({ item, onToggle, onRemove, tone = "neutral", density = "comfortable" }: ShoppingItemRowProps) {
+  const accent = getAccentColors(tone);
+  const compact = density === "compact";
+
   return (
-    <Pressable style={styles.row} onPress={() => onToggle(!item.bought)}>
-      <View style={[styles.checkbox, item.bought && styles.checked]} />
-      <View style={styles.copy}>
-        <Text style={[styles.title, item.bought && styles.crossed]}>{item.title}</Text>
-        {item.quantity ? <Text style={styles.meta}>Qty: {item.quantity}</Text> : null}
-        {item.note ? <Text style={styles.meta}>{item.note}</Text> : null}
-        {item.productSnapshot?.sourceName ? (
-          <Text style={styles.source}>
-            Imported from {item.productSnapshot.sourceName}
-            {item.productSnapshot.brand ? ` · ${item.productSnapshot.brand}` : ""}
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
+    <View style={[styles.row, compact ? styles.rowCompact : null]}>
+      <Pressable style={styles.toggleArea} onPress={() => onToggle(!item.bought)}>
+        <View
+          style={[
+            styles.checkbox,
+            {
+              borderColor: accent.solid,
+              backgroundColor: item.bought ? accent.solid : theme.colors.surfaceStrong,
+            },
+          ]}
+        />
+        <View style={styles.copy}>
+          <Text style={[styles.title, item.bought ? styles.crossed : null]}>{item.title}</Text>
+          {item.pendingSync ? <Text style={[styles.pending, { color: accent.solid }]}>Saved locally. Waiting for internet.</Text> : null}
+          {item.quantity ? <Text style={styles.meta}>Qty: {item.quantity}</Text> : null}
+          {item.storeName ? <Text style={styles.meta}>Store: {item.storeName}</Text> : null}
+          {!compact && item.note ? <Text style={styles.meta}>{item.note}</Text> : null}
+          {item.productSnapshot?.sourceName ? (
+            <Text style={[styles.source, { color: accent.solid }]}>
+              Imported from {item.productSnapshot.sourceName}
+              {item.productSnapshot.brand ? ` • ${item.productSnapshot.brand}` : ""}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+      <Pressable hitSlop={8} style={styles.removeButton} onPress={onRemove}>
+        <Text style={styles.removeLabel}>Remove</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -36,16 +57,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },
+  rowCompact: {
+    paddingVertical: 10,
+  },
+  toggleArea: {
+    flex: 1,
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "flex-start",
+  },
   checkbox: {
     width: 22,
     height: 22,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: theme.colors.primary,
     marginTop: 2,
-  },
-  checked: {
-    backgroundColor: theme.colors.primary,
   },
   copy: {
     flex: 1,
@@ -53,8 +79,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontWeight: "700",
     color: theme.colors.text,
+    fontFamily: theme.typography.fonts.title,
   },
   crossed: {
     textDecorationLine: "line-through",
@@ -62,11 +88,29 @@ const styles = StyleSheet.create({
   },
   meta: {
     color: theme.colors.mutedText,
-    fontSize: 13,
+    fontSize: theme.typography.size.meta,
   },
   source: {
-    color: theme.colors.accent,
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: theme.typography.fonts.label,
+  },
+  pending: {
+    fontSize: 12,
+    fontFamily: theme.typography.fonts.label,
+  },
+  removeButton: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 2,
+    zIndex: 1,
+  },
+  removeLabel: {
+    color: theme.colors.text,
+    fontSize: 13,
+    fontFamily: theme.typography.fonts.label,
   },
 });

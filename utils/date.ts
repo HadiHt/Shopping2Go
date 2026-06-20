@@ -1,17 +1,44 @@
 import type { NullableTimestamp, ReceiptEntry, SpendingBucket, SpendingRange } from "@/types/models";
 
+export function dayKeyFromDate(date: Date) {
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}-${`${date.getDate()}`.padStart(2, "0")}`;
+}
+
 export function monthKeyFromDate(date: Date) {
   return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}`;
+}
+
+export function currentDayKey() {
+  return dayKeyFromDate(new Date());
 }
 
 export function currentMonthKey() {
   return monthKeyFromDate(new Date());
 }
 
+export function currentYearKey() {
+  return `${new Date().getFullYear()}`;
+}
+
+export function shiftDay(dayKey: string, delta: number) {
+  const [year, month, day] = dayKey.split("-").map(Number);
+  const date = new Date(year, month - 1, day + delta);
+  return dayKeyFromDate(date);
+}
+
 export function shiftMonth(monthKey: string, delta: number) {
   const [year, month] = monthKey.split("-").map(Number);
   const date = new Date(year, month - 1 + delta, 1);
   return monthKeyFromDate(date);
+}
+
+export function shiftYear(yearKey: string, delta: number) {
+  const year = Number(yearKey);
+  return `${year + delta}`;
+}
+
+export function formatDayLabel(dayKey: string) {
+  return displayDate(dayKey);
 }
 
 export function formatMonthLabel(monthKey: string) {

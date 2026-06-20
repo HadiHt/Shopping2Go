@@ -1,11 +1,11 @@
 import { Link } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet } from "react-native";
 
 import { ActionButton } from "@/components/forms/ActionButton";
 import { StatusMessage } from "@/components/feedback/StatusMessage";
 import { TextField } from "@/components/forms/TextField";
-import { Card, Screen } from "@/components/layout/Screen";
+import { Card, Screen, ScreenHeader } from "@/components/layout/Screen";
 import { useSession } from "@/hooks/useSession";
 import { theme } from "@/lib/theme";
 import { getErrorMessage } from "@/utils/errors";
@@ -38,17 +38,18 @@ export default function SignUpScreen() {
 
   return (
     <Screen>
-      <Card>
-        <Text style={styles.title}>Create your shared household space</Text>
-        <Text style={styles.copy}>Everyone gets their own login, and your list data stays private to household members.</Text>
-      </Card>
+      <ScreenHeader
+        badge="Create account"
+        title="Create your shared household space"
+        description="Everyone gets their own login, and the household data stays private to the people you invite."
+      />
 
       <Card>
-        <TextField label="Display name" value={displayName} onChangeText={setDisplayName} />
-        <TextField label="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} />
-        <TextField label="Password" secureTextEntry value={password} onChangeText={setPassword} />
+        <TextField label="Display name" value={displayName} onChangeText={setDisplayName} tone="neutral" />
+        <TextField label="Email" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} tone="neutral" />
+        <TextField label="Password" secureTextEntry value={password} onChangeText={setPassword} tone="neutral" />
         {status ? <StatusMessage tone={status.tone} message={status.message} /> : null}
-        <ActionButton label="Create account" onPress={handleSubmit} loading={loading} />
+        <ActionButton label="Create account" tone="neutral" onPress={handleSubmit} loading={loading} />
         <Link href="/(auth)/sign-in" style={styles.link}>
           Already have an account? Sign in
         </Link>
@@ -58,19 +59,8 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: {
-    color: theme.colors.text,
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: "800",
-  },
-  copy: {
-    color: theme.colors.mutedText,
-    fontSize: 15,
-    lineHeight: 22,
-  },
   link: {
-    color: theme.colors.primary,
-    fontWeight: "700",
+    color: theme.colors.info,
+    fontFamily: theme.typography.fonts.label,
   },
 });

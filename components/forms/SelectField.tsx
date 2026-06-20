@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { theme } from "@/lib/theme";
+import { type AccentTone, getAccentColors, theme } from "@/lib/theme";
 
 type SelectOption = {
   label: string;
@@ -14,27 +14,36 @@ type SelectFieldProps = {
   onValueChange: (value: string) => void;
   options: SelectOption[];
   helperText?: string;
+  tone?: AccentTone;
 };
 
-export function SelectField({ label, value, onValueChange, options, helperText }: SelectFieldProps) {
+export function SelectField({ label, value, onValueChange, options, helperText, tone = "neutral" }: SelectFieldProps) {
   const [open, setOpen] = useState(false);
+  const accent = getAccentColors(tone);
 
-  const selectedOption = useMemo(
-    () => options.find((option) => option.value === value) ?? options[0],
-    [options, value],
-  );
+  const selectedOption = useMemo(() => options.find((option) => option.value === value) ?? options[0], [options, value]);
 
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>{label}</Text>
       <View style={styles.dropdownWrap}>
-        <Pressable style={({ pressed }) => [styles.trigger, pressed && styles.triggerPressed, open && styles.triggerOpen]} onPress={() => setOpen((current) => !current)}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.trigger,
+            {
+              borderColor: open ? accent.solid : tone === "neutral" ? theme.colors.border : accent.softBorder,
+            },
+            pressed ? styles.triggerPressed : null,
+            open ? styles.triggerOpen : null,
+          ]}
+          onPress={() => setOpen((current) => !current)}
+        >
           <Text style={styles.triggerText}>{selectedOption?.label ?? "Select an option"}</Text>
-          <Text style={styles.chevron}>{open ? "▲" : "▼"}</Text>
+          <Text style={[styles.chevron, { color: accent.solid }]}>{open ? "▲" : "▼"}</Text>
         </Pressable>
 
         {open ? (
-          <View style={styles.menu}>
+          <View style={[styles.menu, { borderColor: accent.solid }]}>
             <ScrollView nestedScrollEnabled style={styles.scroll} contentContainerStyle={styles.scrollContent}>
               {options.map((option) => {
                 const selected = option.value === value;
@@ -42,13 +51,19 @@ export function SelectField({ label, value, onValueChange, options, helperText }
                 return (
                   <Pressable
                     key={`${option.value}-${option.label}`}
-                    style={({ pressed }) => [styles.option, selected && styles.optionSelected, pressed && styles.optionPressed]}
+                    style={({ pressed }) => [
+                      styles.option,
+                      selected ? { backgroundColor: accent.soft } : null,
+                      pressed ? styles.optionPressed : null,
+                    ]}
                     onPress={() => {
                       onValueChange(option.value);
                       setOpen(false);
                     }}
                   >
-                    <Text style={[styles.optionText, selected && styles.optionTextSelected]}>{option.label}</Text>
+                    <Text style={[styles.optionText, selected ? { color: accent.solid, fontFamily: theme.typography.fonts.label } : null]}>
+                      {option.label}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -67,21 +82,20 @@ const styles = StyleSheet.create({
   },
   label: {
     color: theme.colors.text,
-    fontWeight: "700",
-    fontSize: 15,
+    fontSize: 14,
+    fontFamily: theme.typography.fonts.label,
   },
   dropdownWrap: {
     position: "relative",
     zIndex: 20,
   },
   trigger: {
-    minHeight: 52,
+    minHeight: theme.components.inputHeight,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceStrong,
     borderRadius: theme.radius.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -91,35 +105,27 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   triggerOpen: {
-    borderColor: theme.colors.primary,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
   triggerText: {
     flex: 1,
     color: theme.colors.text,
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: theme.typography.size.body,
   },
   chevron: {
-    color: theme.colors.mutedText,
     fontSize: 12,
-    fontWeight: "700",
+    fontFamily: theme.typography.fonts.label,
   },
   menu: {
     borderWidth: 1,
     borderTopWidth: 0,
-    borderColor: theme.colors.primary,
     backgroundColor: theme.colors.surfaceStrong,
     borderBottomLeftRadius: theme.radius.sm,
     borderBottomRightRadius: theme.radius.sm,
     maxHeight: 240,
     overflow: "hidden",
-    shadowColor: "#000000",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    ...theme.shadow.card,
   },
   scroll: {
     maxHeight: 240,
@@ -133,22 +139,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  optionSelected: {
-    backgroundColor: theme.colors.primarySoft,
-  },
   optionPressed: {
     opacity: 0.88,
   },
   optionText: {
     color: theme.colors.text,
-    fontSize: 15,
-  },
-  optionTextSelected: {
-    color: theme.colors.primary,
-    fontWeight: "700",
+    fontSize: theme.typography.size.body,
   },
   helper: {
     color: theme.colors.mutedText,
-    fontSize: 12,
+    fontSize: theme.typography.size.helper,
+    lineHeight: 18,
   },
 });

@@ -1,18 +1,45 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 
-import { theme } from "@/lib/theme";
+import { type AccentTone, getAccentColors, theme } from "@/lib/theme";
 
 type TextFieldProps = TextInputProps & {
   label: string;
   helperText?: string;
+  errorText?: string;
+  hasError?: boolean;
+  required?: boolean;
+  tone?: AccentTone;
 };
 
-export function TextField({ label, helperText, ...props }: TextFieldProps) {
+export function TextField({
+  label,
+  helperText,
+  errorText,
+  hasError = false,
+  required = false,
+  tone = "neutral",
+  ...props
+}: TextFieldProps) {
+  const accent = getAccentColors(tone);
+
   return (
     <View style={styles.wrapper}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput placeholderTextColor={theme.colors.mutedText} style={styles.input} {...props} />
-      {helperText ? <Text style={styles.helper}>{helperText}</Text> : null}
+      <Text style={[styles.label, hasError ? styles.labelError : null]}>
+        {label}
+        {required ? " *" : ""}
+      </Text>
+      <TextInput
+        placeholderTextColor={theme.colors.mutedText}
+        style={[
+          styles.input,
+          {
+            borderColor: hasError ? theme.colors.danger : tone === "neutral" ? theme.colors.border : accent.softBorder,
+            backgroundColor: hasError ? "#FFF1F1" : theme.colors.surfaceStrong,
+          },
+        ]}
+        {...props}
+      />
+      {errorText ? <Text style={styles.error}>{errorText}</Text> : helperText ? <Text style={styles.helper}>{helperText}</Text> : null}
     </View>
   );
 }
@@ -23,21 +50,29 @@ const styles = StyleSheet.create({
   },
   label: {
     color: theme.colors.text,
-    fontWeight: "700",
-    fontSize: 15,
+    fontSize: 14,
+    fontFamily: theme.typography.fonts.label,
+  },
+  labelError: {
+    color: theme.colors.danger,
   },
   input: {
+    minHeight: theme.components.inputHeight,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: theme.typography.size.body,
     color: theme.colors.text,
   },
   helper: {
     color: theme.colors.mutedText,
-    fontSize: 12,
+    fontSize: theme.typography.size.helper,
+    lineHeight: 18,
+  },
+  error: {
+    color: theme.colors.danger,
+    fontSize: theme.typography.size.helper,
+    fontFamily: theme.typography.fonts.label,
   },
 });

@@ -14,12 +14,24 @@ service cloud.firestore {
       return getAfter(/databases/$(database)/documents/households/$(householdId));
     }
 
+    function memberDocPath(householdId) {
+      return /databases/$(database)/documents/householdMembers/$(householdId + "_" + request.auth.uid);
+    }
+
     function isMember(householdId) {
-      return signedIn() && request.auth.uid in householdDoc(householdId).data.memberIds;
+      return signedIn()
+        && (
+          exists(memberDocPath(householdId))
+          || request.auth.uid in householdDoc(householdId).data.memberIds
+        );
     }
 
     function isMemberAfter(householdId) {
       return signedIn() && request.auth.uid in householdDocAfter(householdId).data.memberIds;
+    }
+
+    function isMemberOrAfter(householdId) {
+      return isMember(householdId) || isMemberAfter(householdId);
     }
 
     function canJoinWithInvite(householdId) {
@@ -37,7 +49,11 @@ service cloud.firestore {
 
     match /households/{householdId} {
       allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow read: if isMember(householdId);
+      allow read: if signedIn()
+        && (
+          request.auth.uid in resource.data.memberIds
+          || exists(memberDocPath(householdId))
+        );
       allow update: if isMember(householdId) || canJoinWithInvite(householdId);
       allow delete: if false;
     }
@@ -56,33 +72,42 @@ service cloud.firestore {
     }
 
     match /lists/{listId} {
-      allow create: if signedIn() && isMemberAfter(request.resource.data.householdId);
+      allow create: if signedIn() && isMemberOrAfter(request.resource.data.householdId);
       allow read, update: if signedIn() && isMember(resource.data.householdId);
       allow delete: if false;
     }
 
     match /listItems/{itemId} {
-      allow create: if signedIn() && isMemberAfter(request.resource.data.householdId);
-      allow read, update: if signedIn() && isMember(resource.data.householdId);
-      allow delete: if false;
+      allow create: if signedIn() && isMemberOrAfter(request.resource.data.householdId);
+      allow read: if signedIn() && isMember(resource.data.householdId);
+      allow update: if signedIn()
+        && resource.data.householdId == request.resource.data.householdId
+        && isMember(resource.data.householdId);
+      allow delete: if signedIn() && isMember(resource.data.householdId);
     }
 
     match /monthlyTemplates/{templateId} {
-      allow create: if signedIn() && isMemberAfter(request.resource.data.householdId);
+      allow create: if signedIn() && isMemberOrAfter(request.resource.data.householdId);
       allow read, update: if signedIn() && isMember(resource.data.householdId);
       allow delete: if false;
     }
 
     match /receipts/{receiptId} {
-      allow create: if signedIn() && isMemberAfter(request.resource.data.householdId);
+      allow create: if signedIn() && isMemberOrAfter(request.resource.data.householdId);
       allow read, update: if signedIn() && isMember(resource.data.householdId);
       allow delete: if false;
     }
 
     match /productSnapshots/{snapshotId} {
-      allow create: if signedIn() && isMemberAfter(request.resource.data.householdId);
+      allow create: if signedIn() && isMemberOrAfter(request.resource.data.householdId);
       allow read, update: if signedIn() && isMember(resource.data.householdId);
       allow delete: if false;
+    }
+
+    match /savedProducts/{savedProductId} {
+      allow create: if signedIn() && isMemberOrAfter(request.resource.data.householdId);
+      allow read, update: if signedIn() && isMember(resource.data.householdId);
+      allow delete: if signedIn() && isMember(resource.data.householdId);
     }
   }
 }

@@ -1,17 +1,20 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { theme } from "@/lib/theme";
+import { type AccentTone, getAccentColors, theme } from "@/lib/theme";
 
 type StatTileProps = {
   label: string;
   value: string;
+  tone?: AccentTone;
 };
 
-export function StatTile({ label, value }: StatTileProps) {
+export function StatTile({ label, value, tone = "neutral" }: StatTileProps) {
+  const accent = getAccentColors(tone);
+
   return (
-    <View style={styles.tile}>
+    <View style={[styles.tile, { backgroundColor: accent.soft, borderColor: accent.softBorder }]}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
+      <Text style={[styles.value, { color: accent.solid }]}>{value}</Text>
     </View>
   );
 }
@@ -20,19 +23,18 @@ const styles = StyleSheet.create({
   tile: {
     flex: 1,
     minWidth: 140,
-    backgroundColor: theme.colors.primarySoft,
     borderRadius: theme.radius.md,
+    borderWidth: 1,
     padding: 16,
     gap: 8,
   },
   label: {
     color: theme.colors.mutedText,
     fontSize: 13,
-    fontWeight: "600",
+    fontFamily: theme.typography.fonts.label,
   },
   value: {
-    color: theme.colors.primary,
     fontSize: 24,
-    fontWeight: "800",
+    fontFamily: theme.typography.fonts.heading,
   },
 });
