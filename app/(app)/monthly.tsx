@@ -29,7 +29,7 @@ import {
   updateListItem,
 } from "@/services/firestore";
 import type { MonthlyTemplate, ProductSnapshot, SavedProduct, ShoppingItem } from "@/types/models";
-import { buildSavedProductSnapshot, findMergeableListItem, parseQuantityValue } from "@/utils/listItems";
+import { buildSavedProductSnapshot, findMergeableListItem, getListItemAutoRemoveAt, parseQuantityValue } from "@/utils/listItems";
 import { currentMonthKey, formatMonthLabel, shiftMonth } from "@/utils/date";
 import { getErrorMessage } from "@/utils/errors";
 
@@ -734,6 +734,7 @@ export default function MonthlyScreen() {
             <ShoppingItemRow
               key={item.id}
               item={item}
+              autoRemoveAt={getListItemAutoRemoveAt(item)}
               tone="monthly"
               density="compact"
               onToggle={(value) => {

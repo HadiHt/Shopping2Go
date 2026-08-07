@@ -18,7 +18,7 @@ export function getErrorMessage(error: unknown, fallback: string) {
       case "auth/network-request-failed":
         return "Network request failed. Check your connection and try again.";
       case "permission-denied":
-        return "Firebase denied this action. Check that Firestore rules were deployed.";
+        return error.message || "Firebase denied this action.";
       default:
         break;
     }

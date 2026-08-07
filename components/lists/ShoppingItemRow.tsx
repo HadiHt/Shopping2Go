@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { type AccentTone, getAccentColors, theme } from "@/lib/theme";
 import type { ShoppingItem } from "@/types/models";
+import { formatAutoRemoveCountdown } from "@/utils/listItems";
 
 type ShoppingItemRowProps = {
   item: ShoppingItem;
@@ -9,11 +11,39 @@ type ShoppingItemRowProps = {
   onRemove: () => void;
   tone?: AccentTone;
   density?: "compact" | "comfortable";
+  autoRemoveAt?: number | null;
 };
 
-export function ShoppingItemRow({ item, onToggle, onRemove, tone = "neutral", density = "comfortable" }: ShoppingItemRowProps) {
+export function ShoppingItemRow({
+  item,
+  onToggle,
+  onRemove,
+  tone = "neutral",
+  density = "comfortable",
+  autoRemoveAt = null,
+}: ShoppingItemRowProps) {
   const accent = getAccentColors(tone);
   const compact = density === "compact";
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!item.bought || autoRemoveAt === null) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      setNow(Date.now());
+    }, 60 * 1000);
+
+    setNow(Date.now());
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [autoRemoveAt, item.bought]);
+
+  const autoRemoveLabel =
+    item.bought && autoRemoveAt !== null ? `Auto-removes in ${formatAutoRemoveCountdown(autoRemoveAt, now)}` : null;
 
   return (
     <View style={[styles.row, compact ? styles.rowCompact : null]}>
@@ -30,6 +60,7 @@ export function ShoppingItemRow({ item, onToggle, onRemove, tone = "neutral", de
         <View style={styles.copy}>
           <Text style={[styles.title, item.bought ? styles.crossed : null]}>{item.title}</Text>
           {item.pendingSync ? <Text style={[styles.pending, { color: accent.solid }]}>Saved locally. Waiting for internet.</Text> : null}
+          {autoRemoveLabel ? <Text style={[styles.pending, { color: accent.solid }]}>{autoRemoveLabel}</Text> : null}
           {item.quantity ? <Text style={styles.meta}>Qty: {item.quantity}</Text> : null}
           {item.storeName ? <Text style={styles.meta}>Store: {item.storeName}</Text> : null}
           {!compact && item.note ? <Text style={styles.meta}>{item.note}</Text> : null}

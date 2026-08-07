@@ -56,6 +56,7 @@ import type {
 } from "@/types/models";
 import { currentMonthKey } from "@/utils/date";
 import { generateInviteCode } from "@/utils/invite";
+import { getListItemAutoRemoveAt, isListItemExpired } from "@/utils/listItems";
 
 function dataWithId<T>(id: string, data: Record<string, unknown>) {
   return { id, ...(data as T) };
@@ -102,19 +103,15 @@ function isoNow() {
   return new Date().toISOString();
 }
 
-function hoursAgo(hours: number) {
-  return Date.now() - hours * 60 * 60 * 1000;
-}
-
-const BOUGHT_ITEM_AUTO_REMOVE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const listItemCacheListeners = new Map<string, Set<(items: ShoppingItem[]) => void>>();
+const monthlyListSyncPromises = new Map<string, Promise<void>>();
 const boughtItemCleanupTimers = new Map<
   string,
   {
     timeoutId: ReturnType<typeof setTimeout>;
     householdId: string;
     listId: string;
-    boughtAt: number;
+    expiresAt: number;
   }
 >();
 
@@ -128,6 +125,10 @@ function debugMonthlyRecurring(event: string, details?: Record<string, unknown>)
 
 function listItemCacheListenerKey(householdId: string, listId: string) {
   return `${householdId}::${listId}`;
+}
+
+function monthlySyncKey(householdId: string, listId: string, monthKey: string) {
+  return `${householdId}::${listId}::${monthKey}`;
 }
 
 function emitListItemCacheListeners(householdId: string, listId: string, items: ShoppingItem[]) {
@@ -175,6 +176,15 @@ function sortByUpdatedAtDesc<T extends { createdAt?: unknown; updatedAt?: unknow
 
 function sortReceipts(items: ReceiptEntry[]) {
   return items.slice().sort((left, right) => comparableTime(right.purchaseDate) - comparableTime(left.purchaseDate));
+}
+
+function templateMatchesListItem(template: MonthlyTemplate, item: ShoppingItem) {
+  return (
+    normalizeText(item.title) === normalizeText(template.title) &&
+    normalizeText(item.note ?? "") === normalizeText(template.note ?? "") &&
+    normalizeText(item.storeName ?? "") === normalizeText(template.storeName ?? "") &&
+    normalizeQuantity(item.quantity) === normalizeQuantity(template.quantity)
+  );
 }
 
 function isLikelyOfflineError(error: unknown) {
@@ -431,7 +441,7 @@ async function clearSyncedPendingListItems(items: ShoppingItem[]) {
 }
 
 async function removeExpiredBoughtItems(items: ShoppingItem[]) {
-  const expiredItems = items.filter((item) => item.bought && comparableTime(item.boughtAt) > 0 && comparableTime(item.boughtAt) <= hoursAgo(24));
+  const expiredItems = items.filter((item) => isListItemExpired(item));
 
   if (expiredItems.length === 0) {
     return items;
@@ -511,13 +521,11 @@ async function runBoughtItemAutoCleanup(householdId: string, listId: string, ite
       return;
     }
 
-    const boughtAt = comparableTime(currentItem.boughtAt);
+    const expiresAt = getListItemAutoRemoveAt(currentItem);
 
-    if (boughtAt <= 0) {
+    if (expiresAt === null) {
       return;
     }
-
-    const expiresAt = boughtAt + BOUGHT_ITEM_AUTO_REMOVE_WINDOW_MS;
 
     if (expiresAt > Date.now()) {
       scheduleBoughtItemCleanup(currentItem);
@@ -538,17 +546,12 @@ async function runBoughtItemAutoCleanup(householdId: string, listId: string, ite
 function scheduleBoughtItemCleanup(item: ShoppingItem) {
   clearBoughtItemCleanupTimer(item.id);
 
-  if (!item.bought) {
+  const expiresAt = getListItemAutoRemoveAt(item);
+
+  if (expiresAt === null) {
     return;
   }
 
-  const boughtAt = comparableTime(item.boughtAt);
-
-  if (boughtAt <= 0) {
-    return;
-  }
-
-  const expiresAt = boughtAt + BOUGHT_ITEM_AUTO_REMOVE_WINDOW_MS;
   const delay = expiresAt - Date.now();
 
   if (delay <= 0) {
@@ -564,7 +567,7 @@ function scheduleBoughtItemCleanup(item: ShoppingItem) {
     timeoutId,
     householdId: item.householdId,
     listId: item.listId,
-    boughtAt,
+    expiresAt,
   });
 }
 
@@ -578,7 +581,7 @@ function reconcileBoughtItemCleanupTimers(householdId: string, listId: string, i
 
     const item = itemsById.get(itemId);
 
-    if (!item || !item.bought || comparableTime(item.boughtAt) <= 0) {
+    if (!item || !item.bought || getListItemAutoRemoveAt(item) === null) {
       clearBoughtItemCleanupTimer(itemId);
     }
   });
@@ -589,10 +592,16 @@ function reconcileBoughtItemCleanupTimers(householdId: string, listId: string, i
       return;
     }
 
-    const boughtAt = comparableTime(item.boughtAt);
+    const expiresAt = getListItemAutoRemoveAt(item);
     const existingTimer = boughtItemCleanupTimers.get(item.id);
 
-    if (existingTimer && existingTimer.householdId === householdId && existingTimer.listId === listId && existingTimer.boughtAt === boughtAt) {
+    if (
+      expiresAt !== null &&
+      existingTimer &&
+      existingTimer.householdId === householdId &&
+      existingTimer.listId === listId &&
+      existingTimer.expiresAt === expiresAt
+    ) {
       return;
     }
 
@@ -637,10 +646,7 @@ function isRecurringTemplatePresentInList(items: ShoppingItem[], template: Month
   }
 
   const isPresent = items.some((item) => {
-    const isExpiredBoughtItem =
-      item.bought && comparableTime(item.boughtAt) > 0 && comparableTime(item.boughtAt) <= hoursAgo(24);
-
-    if (isExpiredBoughtItem) {
+    if (isListItemExpired(item)) {
       return false;
     }
 
@@ -667,6 +673,15 @@ function isRecurringTemplatePresentInList(items: ShoppingItem[], template: Month
 }
 
 async function syncRecurringTemplatesIntoMonthlyList(householdId: string, listId: string, monthKey: string) {
+  const syncKey = monthlySyncKey(householdId, listId, monthKey);
+  const existingSync = monthlyListSyncPromises.get(syncKey);
+
+  if (existingSync) {
+    await existingSync;
+    return;
+  }
+
+  const syncPromise = (async () => {
   debugMonthlyRecurring("sync-start", {
     householdId,
     listId,
@@ -718,7 +733,7 @@ async function syncRecurringTemplatesIntoMonthlyList(householdId: string, listId
   const filteredCachedItems = cachedListItems.filter((item) => !pendingDeletedItemIds.has(item.id));
   let currentItems = sortByCreatedAt(
     applyPendingListItemState(mergeRemoteWithPendingById(remoteItems, filteredCachedItems), pendingUpdateMap, pendingToggleMap),
-  ).filter((item) => !(item.bought && comparableTime(item.boughtAt) > 0 && comparableTime(item.boughtAt) <= hoursAgo(24)));
+  ).filter((item) => !isListItemExpired(item));
 
   debugMonthlyRecurring("sync-merged-state", {
     householdId,
@@ -743,6 +758,32 @@ async function syncRecurringTemplatesIntoMonthlyList(householdId: string, listId
       listId: item.listId,
     })),
   });
+
+  for (const template of templates) {
+    const matches = currentItems
+      .filter((item) => templateMatchesListItem(template, item))
+      .sort((left, right) => comparableTime(left.createdAt) - comparableTime(right.createdAt));
+
+    if (matches.length <= 1) {
+      continue;
+    }
+
+    const duplicates = matches.slice(1);
+
+    debugMonthlyRecurring("sync-remove-duplicate-template-items", {
+      householdId,
+      listId,
+      monthKey,
+      templateId: template.id,
+      templateTitle: template.title,
+      keptItemId: matches[0]?.id ?? null,
+      removedItemIds: duplicates.map((item) => item.id),
+    });
+
+    await Promise.all(duplicates.map((item) => deleteListItem(item)));
+    const duplicateIds = new Set(duplicates.map((item) => item.id));
+    currentItems = currentItems.filter((item) => !duplicateIds.has(item.id));
+  }
 
   for (const template of templates) {
     if (isRecurringTemplatePresentInList(currentItems, template)) {
@@ -808,6 +849,15 @@ async function syncRecurringTemplatesIntoMonthlyList(householdId: string, listId
       pendingSync: item.pendingSync ?? false,
     })),
   });
+  })();
+
+  monthlyListSyncPromises.set(syncKey, syncPromise);
+
+  try {
+    await syncPromise;
+  } finally {
+    monthlyListSyncPromises.delete(syncKey);
+  }
 }
 
 export async function ensureOngoingList(householdId: string) {
@@ -1114,19 +1164,21 @@ export function subscribeListItems(
   const unsubscribeCacheListener = subscribeListItemCacheChanges(householdId, listId, callback);
 
   void hydrateCachedCollection(() => readCachedListItems(householdId, listId), (items) => {
-    reconcileBoughtItemCleanupTimers(householdId, listId, items);
+    const visibleItems = items.filter((item) => !isListItemExpired(item));
+    reconcileBoughtItemCleanupTimers(householdId, listId, visibleItems);
     debugMonthlyRecurring("subscribe-list-items-hydrate-cache", {
       householdId,
       listId,
-      cachedItemCount: items.length,
-      cachedItems: items.map((item) => ({
+      cachedItemCount: visibleItems.length,
+      cachedItems: visibleItems.map((item) => ({
         id: item.id,
         title: item.title,
         bought: item.bought,
         pendingSync: item.pendingSync ?? false,
       })),
     });
-    callback(sortByCreatedAt(items));
+    callback(sortByCreatedAt(visibleItems));
+    void removeExpiredBoughtItems(items);
   });
 
   const unsubscribeSnapshot = onSnapshot(
@@ -1532,6 +1584,19 @@ async function toggleListItemState(item: ShoppingItem, bought: boolean, preferOf
     await removePendingMutationsByPrefix(`toggle-list-item:${item.id}`);
     return { pendingSync: false, item: updatedItem };
   } catch (error) {
+    console.error("[firestore] toggle-list-item-failed", {
+      itemId: item.id,
+      householdId: item.householdId,
+      listId: item.listId,
+      nextBought: bought,
+      previousBought: item.bought,
+      errorCode:
+        error && typeof error === "object" && "code" in error && typeof (error as { code?: unknown }).code === "string"
+          ? (error as { code: string }).code
+          : null,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+
     if (!isLikelyOfflineError(error)) {
       await cacheListItem(item);
       throw error;

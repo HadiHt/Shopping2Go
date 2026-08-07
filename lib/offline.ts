@@ -18,6 +18,8 @@ type KeyValueStorage = {
   getItem: (key: string) => Promise<string | null>;
   setItem: (key: string, value: string) => Promise<void>;
   removeItem: (key: string) => Promise<void>;
+  getAllKeys?: () => Promise<readonly string[]>;
+  multiRemove?: (keys: string[]) => Promise<void>;
 };
 
 function comparableTime(value: unknown) {
@@ -234,7 +236,9 @@ export function mergeRemoteWithPendingById<
     const existing = merged.get(item.id);
 
     if (!existing) {
-      merged.set(item.id, item);
+      if (item.pendingSync) {
+        merged.set(item.id, item);
+      }
       return;
     }
 
@@ -357,5 +361,17 @@ export async function removePendingMutation(mutationId: string) {
 }
 
 export async function clearOfflineSession() {
+  const storage = await getStorage();
+
+  if (storage?.getAllKeys && storage.multiRemove) {
+    const keys = (await storage.getAllKeys()).filter((key) => key.startsWith("shopping2go."));
+
+    if (keys.length > 0) {
+      await storage.multiRemove(keys);
+    }
+
+    return;
+  }
+
   await Promise.all([removeValue(SESSION_USER_KEY), removeValue(ACTIVE_HOUSEHOLD_KEY), removeValue(PENDING_MUTATIONS_KEY)]);
 }

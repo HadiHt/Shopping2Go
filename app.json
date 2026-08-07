@@ -2,7 +2,7 @@
   "expo": {
     "name": "Shopping2Go",
     "slug": "shopping2go",
-    "version": "1.0.27",
+    "version": "1.0.31",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "shopping2go",
@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.hadiht.shopping2go",
-      "versionCode": 28,
+      "versionCode": 32,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

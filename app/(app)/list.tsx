@@ -28,7 +28,7 @@ import {
   updateListItem,
 } from "@/services/firestore";
 import type { ProductSnapshot, SavedProduct, ShoppingItem } from "@/types/models";
-import { buildSavedProductSnapshot, findMergeableListItem, parseQuantityValue } from "@/utils/listItems";
+import { buildSavedProductSnapshot, findMergeableListItem, getListItemAutoRemoveAt, parseQuantityValue } from "@/utils/listItems";
 import { getErrorMessage } from "@/utils/errors";
 
 function deriveStoreName(product: ProductSnapshot) {
@@ -589,6 +589,7 @@ export default function AnytimeListScreen() {
             <ShoppingItemRow
               key={item.id}
               item={item}
+              autoRemoveAt={getListItemAutoRemoveAt(item)}
               tone="anytime"
               density="compact"
               onToggle={(value) => {
